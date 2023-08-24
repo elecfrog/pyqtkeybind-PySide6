@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Sample PyQt5 app to demonstrate keybinder capabilities."""
+"""Sample PySide6 app to demonstrate keybinder capabilities."""
 
 import sys
 
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QAbstractNativeEventFilter, QAbstractEventDispatcher
+from qtpy.QtGui import QKeySequence
+from qtpy import QtWidgets
+from qtpy.QtCore import Qt, QAbstractNativeEventFilter, QAbstractEventDispatcher
 
 from pyqtkeybind import keybinder
 
@@ -20,33 +21,22 @@ class WinEventFilter(QAbstractNativeEventFilter):
         return ret, 0
 
 
-def main():
+if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = QtWidgets.QMainWindow()
-
-    print("Sample app for pyqtkeybind:")
-    print("\tPress Ctrl+Shift+A or Print Screen any where to trigger a callback.")
-    print("\tCtrl+Shift+F unregisters and re-registers previous callback.")
-    print("\tCtrl+Shift+E exits the app.")
 
     # Setup a global keyboard shortcut to print "Hello World" on pressing
     # the shortcut
     keybinder.init()
     unregistered = False
 
+
     def callback():
         print("hello world")
-    def exit_app():
-        window.close()
-    def unregister():
-        keybinder.unregister_hotkey(window.winId(), "Shift+Ctrl+A")
-        print("unregister and register previous binding")
-        keybinder.register_hotkey(window.winId(), "Shift+Ctrl+A", callback)
 
-    keybinder.register_hotkey(window.winId(), "Shift+Ctrl+A", callback)
-    keybinder.register_hotkey(window.winId(), "Print Screen", callback)
-    keybinder.register_hotkey(window.winId(), "Shift+Ctrl+E", exit_app)
-    keybinder.register_hotkey(window.winId(), "Shift+Ctrl+F", unregister)
+
+    key_command = QKeySequence(Qt.ControlModifier | Qt.Key_A)
+    keybinder.register_hotkey(window.winId(), key_command, callback)
 
     # Install a native event filter to receive events from the OS
     win_event_filter = WinEventFilter(keybinder)
@@ -55,11 +45,4 @@ def main():
 
     window.show()
     app.exec_()
-    keybinder.unregister_hotkey(window.winId(), "Shift+Ctrl+A")
-    keybinder.unregister_hotkey(window.winId(), "Shift+Ctrl+F" )
-    keybinder.unregister_hotkey(window.winId(), "Shift+Ctrl+E")
-    keybinder.unregister_hotkey(window.winId(), "Print Screen")
-
-
-if __name__ == '__main__':
-    main()
+    keybinder.unregister_hotkey(window.winId(), key_command)
