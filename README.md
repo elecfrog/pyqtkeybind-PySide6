@@ -14,8 +14,7 @@ Install and Sample
 See `sample/hotkey.py`
 
 
-```
-
+```python
 import sys
 
 from qtpy.QtGui import QKeySequence
