@@ -2,42 +2,52 @@
 
 import ctypes
 from ctypes import windll
-from PyQt5.QtGui import QKeySequence
-from PyQt5.QtCore import Qt
+from qtpy.QtGui import QKeySequence
+from qtpy.QtCore import Qt
 
 from .keycodes import KeyTbl, ModsTbl
 
 
-def keys_from_string(keys):
-    keysequence = QKeySequence(keys)
-    ks = keysequence[0]
+def extract_keys(keysequence: QKeySequence):
+    # Extract the integer representation
+    # print(f'Registered: {keysequence}')
+
+    ks_comb = keysequence[0]
+    # print(f'ks_comb: {ks_comb}')
+
+    ks_modifiers = ks_comb.keyboardModifiers()
+    # print(f'ks_modifiers: {ks_modifiers}')
+
+    ks_key = ks_comb.key()
+    # print(f'ks_key: {ks_key}')
+
+    print(f'COMBS: {ks_comb} MOD: {ks_modifiers} KEYS: {ks_key}')
 
     # Calculate the modifiers
     mods = 0
-    qtmods = Qt.NoModifier
-    if (ks & Qt.ShiftModifier == Qt.ShiftModifier):
+    if ks_modifiers & Qt.ShiftModifier:
         mods |= ModsTbl.index(Qt.ShiftModifier)
-        qtmods |= Qt.ShiftModifier.real
-    if (ks & Qt.AltModifier == Qt.AltModifier):
+    if ks_modifiers & Qt.AltModifier:
         mods |= ModsTbl.index(Qt.AltModifier)
-        qtmods |= Qt.AltModifier.real
-    if (ks & Qt.ControlModifier == Qt.ControlModifier):
+    if ks_modifiers & Qt.ControlModifier:
         mods |= ModsTbl.index(Qt.ControlModifier)
-        qtmods |= Qt.ControlModifier.real
+    # print(f'mods = {mods}')
 
-    # Calculate the keys
-    qtkeys = ks ^ qtmods
+    # Calculate the keys, Use ks_key directly
+    keys = 0
     try:
-        keys = KeyTbl[qtkeys]
+        keys = KeyTbl[ks_key]
         if keys == 0:
-            keys = _get_virtual_key(qtkeys)
+            keys = _get_virtual_key(ks_key)
     except ValueError:
-        keys = _get_virtual_key(qtkeys)
+        keys = _get_virtual_key(ks_key)
     except IndexError:
-        keys = KeyTbl.index(qtkeys)
+        keys = KeyTbl.index(ks_key)
         if keys == 0:
-            keys = _get_virtual_key(qtkeys)
+            keys = _get_virtual_key(ks_key)
+    # print(f'keys = {keys}')
 
+    print(f'mods = {mods}, keys = {keys}')
 
     return mods, keys
 

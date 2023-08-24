@@ -6,12 +6,17 @@ import ctypes
 from ctypes import c_bool, c_int, WINFUNCTYPE, GetLastError
 from ctypes.wintypes import UINT
 
-from .keybindutil import keys_from_string
+from .keybindutil import extract_keys
 
 
 class WinKeyBinder(object):
-    __keybinds = defaultdict(list)
-    __keygrabs = defaultdict(int)   # Key grab key -> number of grabs
+    __keybindings = defaultdict(list)
+    __keygrabs = defaultdict(int)  # Key grab key -> number of grabs
+
+    # def __init__(self):
+    #     self.user32 = None
+    #     self.RegisterHotKey = None
+    #     self.UnregisterHotKey = None
 
     def init(self):
         # Register os dependent hooks
@@ -28,7 +33,7 @@ class WinKeyBinder(object):
             self.UnregisterHotKey = prototype(('UnregisterHotKey', self.user32), paramflags)
 
     def register_hotkey(self, wid, keys, callback):
-        mods, kc = keys_from_string(keys)
+        mods, kc = extract_keys(keys)
         if wid is None:
             wid = 0x0
 
@@ -37,27 +42,31 @@ class WinKeyBinder(object):
         # Add MOD_NOREPEAT = 0x4000 to mods, so that keys don't get notified twice
         # This requires VISTA+ operating system
         key_index = kc << 16 | mods
-        if not self.__keygrabs[key_index] and\
+        print(f'key_index = {key_index}')
+        if not self.__keygrabs[key_index] and \
                 not self.RegisterHotKey(wid.__int__(), key_index, UINT(mods | 0x4000), UINT(kc)):
             print("Couldn't register hot key!")
             return False
 
-        self.__keybinds[key_index].append(callback)
+        self.__keybindings[key_index].append(callback)
         self.__keygrabs[key_index] += 1
         return True
 
     def unregister_hotkey(self, wid, keys):
-        mods, kc = keys_from_string(keys)
+        mods, kc = extract_keys(keys)
         key_index = kc << 16 | mods
+        print(f'key_index = {key_index}')
 
-        self.__keybinds.pop(key_index)
-        self.__keygrabs.pop(key_index)
+        if key_index in self.__keygrabs:
+            if self.__keygrabs[key_index] == 1:
+                if not self.UnregisterHotKey(wid.__int__(), key_index):
+                    err = "Couldn't unregister hot key '{0}'. Error code = {1}." \
+                        .format(keys, GetLastError())
+                    print(err)
+                    return False
+            self.__keygrabs[key_index] -= 1
+            self.__keybindings.pop(key_index, None)
 
-        if not self.UnregisterHotKey(wid.__int__(), key_index):
-            err = "Couldn't unregister hot key '{0}'. Error code = {1}."\
-                .format(keys, GetLastError())
-            print(err)
-            return False
         return True
 
     def handler(self, eventType, message):
@@ -66,7 +75,7 @@ class WinKeyBinder(object):
         if eventType == "windows_generic_MSG":
             if msg.message == WM_HOTKEY_MSG:
                 key = msg.lParam
-                for cb in self.__keybinds.get(key, []):
+                for cb in self.__keybindings.get(key, []):
                     try:
                         cb()
                     finally:
